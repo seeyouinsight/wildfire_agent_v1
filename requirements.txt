@@ -1,0 +1,9 @@
+earthengine-api
+flask
+geemap
+langchain
+langchain-core
+langchain-openai
+numpy
+openai
+requests

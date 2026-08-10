@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>即时遥感野火识别智能体</title>
+    <style>
+        :root {
+            --panel-bg: rgba(7, 16, 31, 0.74);
+            --panel-border: rgba(173, 216, 255, 0.22);
+            --text-main: #f5f8ff;
+            --text-muted: #b8c7de;
+            --accent: #7fd6ff;
+            --accent-strong: #31b7ff;
+            --success: #7ee787;
+            --warning: #f7c96b;
+            --danger: #ff7b72;
+            --shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background-image: url('/static/background.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            color: var(--text-main);
+            font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background:
+                linear-gradient(135deg, rgba(2, 12, 27, 0.82), rgba(9, 20, 40, 0.55)),
+                radial-gradient(circle at 22% 20%, rgba(84, 159, 255, 0.16), transparent 35%),
+                radial-gradient(circle at 82% 28%, rgba(97, 245, 255, 0.12), transparent 30%);
+            pointer-events: none;
+        }
+
+        .page-shell {
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .page-header h1 {
+            margin: 0;
+            font-size: clamp(28px, 3vw, 40px);
+        }
+
+        .language-switcher {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .language-switcher select,
+        button,
+        textarea,
+        input[type="text"],
+        input[type="date"],
+        input[type="number"],
+        input[type="file"] {
+            font: inherit;
+        }
+
+        .language-switcher select {
+            min-width: 110px;
+            padding: 8px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-main);
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 320px minmax(440px, 1.15fr) minmax(420px, 1fr);
+            grid-template-rows: minmax(350px, 46vh) minmax(340px, 1fr);
+            gap: 18px;
+            min-height: calc(100vh - 110px);
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 22px;
+            backdrop-filter: blur(14px);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .panel-inner {
+            height: 100%;
+            padding: 22px;
+        }
+
+        .panel-title {
+            margin: 0 0 18px;
+            font-size: 25px;
+            font-weight: 700;
+        }
+
+        .console-panel {
+            grid-row: 1 / span 2;
+        }
+
+        .console-shell {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            height: 100%;
+        }
+
+        .console-log {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .chat-input {
+            display: grid;
+            gap: 10px;
+        }
+
+        .chat-input textarea {
+            min-height: 120px;
+        }
+
+        .log-entry {
+            margin-bottom: 12px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .log-entry.info { background: rgba(127, 214, 255, 0.10); }
+        .log-entry.success { background: rgba(126, 231, 135, 0.10); border-color: rgba(126, 231, 135, 0.28); }
+        .log-entry.error { background: rgba(255, 123, 114, 0.10); border-color: rgba(255, 123, 114, 0.28); }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .field-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .field-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        textarea,
+        input[type="date"],
+        input[type="number"],
+        input[type="file"] {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-main);
+            outline: none;
+        }
+
+        textarea {
+            min-height: 118px;
+            resize: vertical;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+            color: #08111f;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        button:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(49, 183, 255, 0.25); }
+        button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .button-row {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .button-row.three {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .flow-steps {
+            display: grid;
+            gap: 12px;
+        }
+
+        .flow-step {
+            display: flex;
+            gap: 12px;
+            padding: 14px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .flow-step.running {
+            border-color: rgba(127, 214, 255, 0.55);
+            background: rgba(127, 214, 255, 0.12);
+        }
+
+        .flow-step.completed {
+            border-color: rgba(126, 231, 135, 0.42);
+            background: rgba(126, 231, 135, 0.10);
+        }
+
+        .flow-step.error {
+            border-color: rgba(255, 123, 114, 0.42);
+            background: rgba(255, 123, 114, 0.10);
+        }
+
+        .flow-index {
+            width: 32px;
+            height: 32px;
+            flex: 0 0 32px;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            background: rgba(127, 214, 255, 0.16);
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .flow-step.completed .flow-index { background: rgba(126, 231, 135, 0.18); color: var(--success); }
+        .flow-step.error .flow-index { background: rgba(255, 123, 114, 0.18); color: var(--danger); }
+
+        .flow-step strong {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 15px;
+        }
+
+        .flow-message {
+            color: var(--text-muted);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .panel-box {
+            height: calc(100% - 52px);
+            min-height: 240px;
+            padding: 16px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            overflow: auto;
+        }
+
+        .stage-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .stage-tab {
+            width: auto;
+            padding: 9px 14px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-main);
+        }
+
+        .stage-tab.active {
+            background: linear-gradient(135deg, var(--accent-strong), var(--accent));
+            color: #08111f;
+        }
+
+        .result-actions {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(120px, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .sensor-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .sensor-option {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-main);
+        }
+
+        .source-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .source-tab {
+            width: auto;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-main);
+        }
+
+        .source-tab.active {
+            background: rgba(126, 231, 135, 0.9);
+            color: #08111f;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+            line-height: 1.6;
+        }
+
+        .map-frame-wrap {
+            height: 100%;
+            min-height: 560px;
+            border-radius: 18px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .map-frame {
+            width: 100%;
+            height: 100%;
+            min-height: 420px;
+            border: 0;
+            background: #fff;
+        }
+
+        .map-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 4fr) minmax(220px, 1fr);
+            gap: 14px;
+            min-height: 560px;
+        }
+
+        .map-info-column {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 560px;
+            overflow: auto;
+            padding-right: 2px;
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+
+        .meta-card {
+            padding: 12px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .meta-card small {
+            display: block;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .empty-state {
+            display: grid;
+            place-items: center;
+            height: 100%;
+            text-align: center;
+            color: var(--text-muted);
+            line-height: 1.7;
+            border: 1px dashed rgba(255, 255, 255, 0.18);
+            border-radius: 14px;
+            padding: 18px;
+        }
+
+        @media (max-width: 1280px) {
+            .dashboard-grid {
+                grid-template-columns: 320px 1fr;
+                grid-template-rows: auto auto auto;
+            }
+
+            .console-panel {
+                grid-row: 1 / span 3;
+            }
+
+            .flow-panel,
+            .result-panel,
+            .map-panel {
+                grid-column: 2;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .page-shell { padding: 18px; }
+            .page-header { flex-direction: column; align-items: flex-start; }
+            .dashboard-grid { display: flex; flex-direction: column; min-height: auto; }
+            .form-grid,
+            .button-row,
+            .button-row.three,
+            .result-actions,
+            .meta-grid { grid-template-columns: 1fr; }
+            .console-panel { min-height: 420px; }
+            .map-layout { grid-template-columns: 1fr; }
+            .map-info-column { max-height: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page-shell">
+        <header class="page-header">
+            <h1 id="page-title">即时遥感野火识别智能体</h1>
+            <div class="language-switcher">
+                <span id="language-label">Language</span>
+                <select id="language-select">
+                    <option value="en" selected>English</option>
+                    <option value="zh">中文</option>
+                </select>
+            </div>
+        </header>
+
+        <main class="dashboard-grid">
+            <section class="panel console-panel">
+                <div class="panel-inner console-shell">
+                    <h2 class="panel-title" id="console-title">Chat Window</h2>
+                    <div class="console-log" id="console-log"></div>
+                    <div class="chat-input">
+                        <textarea id="chat-message" placeholder="Describe the wildfire task here, for example: Please analyze the Southern California wildfire from 2025-01-10 to 2025-01-20."></textarea>
+                        <button id="chat-send-button" type="button">Send Task from Chat</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel control-panel">
+                <div class="panel-inner">
+                    <h2 class="panel-title" id="custom-title">1. User Customization</h2>
+                    <div class="form-grid">
+                        <div class="field-group">
+                            <label id="case-label" for="case-name">Case Name</label>
+                            <input type="text" id="case-name" value="">
+                        </div>
+                        <div class="field-group">
+                            <label id="sensor-label">Sensor</label>
+                            <div class="sensor-selector" id="sensor-selector">
+                                <label class="sensor-option"><input type="checkbox" name="sensor-option" value="landsat" checked> Landsat</label>
+                                <label class="sensor-option"><input type="checkbox" name="sensor-option" value="sentinel2"> Sentinel-2</label>
+                                <label class="sensor-option"><input type="checkbox" name="sensor-option" value="modis"> MODIS</label>
+                                <label class="sensor-option"><input type="checkbox" name="sensor-option" value="viirs"> VIIRS</label>
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <label id="date-start-label" for="date-start">Start Date</label>
+                            <input type="date" id="date-start">
+                        </div>
+                        <div class="field-group">
+                            <label id="date-end-label" for="date-end">End Date</label>
+                            <input type="date" id="date-end">
+                        </div>
+                        <div class="field-group">
+                            <label id="bbox-min-lng-label" for="bbox-min-lng">BBox Min Lng</label>
+                            <input type="number" step="0.000001" id="bbox-min-lng">
+                        </div>
+                        <div class="field-group">
+                            <label id="bbox-min-lat-label" for="bbox-min-lat">BBox Min Lat</label>
+                            <input type="number" step="0.000001" id="bbox-min-lat">
+                        </div>
+                        <div class="field-group">
+                            <label id="bbox-max-lng-label" for="bbox-max-lng">BBox Max Lng</label>
+                            <input type="number" step="0.000001" id="bbox-max-lng">
+                        </div>
+                        <div class="field-group">
+                            <label id="bbox-max-lat-label" for="bbox-max-lat">BBox Max Lat</label>
+                            <input type="number" step="0.000001" id="bbox-max-lat">
+                        </div>
+                        <div class="field-group full-width">
+                            <label id="region-label" for="region-geojson">GeoJSON Region</label>
+                            <textarea id="region-geojson"></textarea>
+                        </div>
+                        <div class="field-group full-width">
+                            <label id="upload-label" for="region-files">Upload Shapefile / Zip</label>
+                            <input type="file" id="region-files" multiple accept=".zip,.shp,.dbf,.shx,.prj">
+                        </div>
+                    </div>
+                    <div class="button-row three">
+                        <button id="default-case-button" type="button">Load Default Case</button>
+                        <button id="apply-bbox-button" type="button">Apply Bounding Box</button>
+                        <button id="upload-region-button" type="button">Upload Region Files</button>
+                    </div>
+                    <div class="button-row">
+                        <button id="auth-button" type="button">Authenticate GEE</button>
+                        <button id="start-button" type="button">Start Wildfire Analysis</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel flow-panel">
+                <div class="panel-inner">
+                    <h2 class="panel-title" id="workflow-title">2. Workflow</h2>
+                    <div class="flow-steps" id="flow-steps"></div>
+                </div>
+            </section>
+
+            <section class="panel result-panel">
+                <div class="panel-inner">
+                    <h2 class="panel-title" id="result-title">4. Result Download</h2>
+                    <div class="panel-box">
+                        <div class="stage-tabs" id="result-stage-tabs"></div>
+                        <div class="result-actions">
+                            <button id="show-json-button" type="button" disabled>Show JSON</button>
+                            <button id="download-json-button" type="button" disabled>Download JSON</button>
+                            <button id="download-tif-button" type="button" disabled>Download TIF</button>
+                            <button id="download-png-button" type="button" disabled>Download PNG</button>
+                        </div>
+                        <div id="result-content" class="empty-state">No stage result is selected yet.</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel map-panel">
+                <div class="panel-inner">
+                    <h2 class="panel-title" id="map-title">3. geemap Online View</h2>
+                    <div class="panel-box">
+                        <div class="stage-tabs" id="map-stage-tabs"></div>
+                        <div id="map-content" class="empty-state">No stage map is available yet.</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const DEFAULT_CASE = {{ default_case|safe }};
+        const translations = {
+            en: {
+                pageTitle: "Instant Remote Sensing Wildfire Agent",
+                languageLabel: "Language",
+                consoleTitle: "Chat Window",
+                chatPlaceholder: "Describe the wildfire task here, for example: Please analyze the Southern California wildfire from 2025-01-10 to 2025-01-20.",
+                chatSendButton: "Send Task from Chat",
+                customTitle: "1. User Customization",
+                workflowTitle: "2. Workflow",
+                mapTitle: "3. geemap Online View",
+                resultTitle: "4. Result Download",
+                caseLabel: "Case Name",
+                sensorLabel: "Sensor",
+                dateStartLabel: "Start Date",
+                dateEndLabel: "End Date",
+                bboxMinLngLabel: "BBox Min Lng",
+                bboxMinLatLabel: "BBox Min Lat",
+                bboxMaxLngLabel: "BBox Max Lng",
+                bboxMaxLatLabel: "BBox Max Lat",
+                regionLabel: "GeoJSON Region",
+                uploadLabel: "Upload Shapefile / Zip",
+                defaultCaseButton: "Load Default Case",
+                applyBboxButton: "Apply Bounding Box",
+                uploadRegionButton: "Upload Region Files",
+                authButton: "Authenticate GEE",
+                startButton: "Start Wildfire Analysis",
+                showJsonButton: "Show JSON",
+                downloadJsonButton: "Download JSON",
+                downloadTifButton: "Download TIF",
+                downloadPngButton: "Download PNG",
+                resultEmpty: "No stage result is selected yet.",
+                mapEmpty: "No stage map is available yet.",
+                resultReady: "The stage result is ready. Use the buttons above to display or download files.",
+                uploadSuccess: "Region files uploaded and converted to GeoJSON.",
+                uploadError: "Region upload failed",
+                authStart: "Starting GEE authentication...",
+                authSuccess: "GEE authentication successful.",
+                analysisQueued: "Wildfire analysis task submitted.",
+                bboxApplied: "Bounding box has been converted into GeoJSON.",
+                resultUnavailable: "This stage does not have a downloadable file for the selected type."
+            },
+            zh: {
+                pageTitle: "即时遥感野火识别智能体",
+                languageLabel: "语言",
+                consoleTitle: "对话窗口",
+                chatPlaceholder: "在这里输入任务，例如：请帮我提取 2025 年 1 月 10-20 号加州南部山火的野火情况。",
+                chatSendButton: "通过对话启动任务",
+                customTitle: "1. 用户自定义",
+                workflowTitle: "2. 计算流程图",
+                mapTitle: "3. geemap 在线展示",
+                resultTitle: "4. 结果下载",
+                caseLabel: "案例名称",
+                sensorLabel: "传感器",
+                dateStartLabel: "开始日期",
+                dateEndLabel: "结束日期",
+                bboxMinLngLabel: "范围最小经度",
+                bboxMinLatLabel: "范围最小纬度",
+                bboxMaxLngLabel: "范围最大经度",
+                bboxMaxLatLabel: "范围最大纬度",
+                regionLabel: "GeoJSON 区域",
+                uploadLabel: "上传 Shapefile / Zip",
+                defaultCaseButton: "加载默认案例",
+                applyBboxButton: "应用范围框",
+                uploadRegionButton: "上传区域文件",
+                authButton: "验证 GEE",
+                startButton: "开始野火分析",
+                showJsonButton: "展示 JSON",
+                downloadJsonButton: "下载 JSON",
+                downloadTifButton: "下载 TIF",
+                downloadPngButton: "下载 PNG",
+                resultEmpty: "当前还没有选择阶段结果。",
+                mapEmpty: "当前还没有可展示的阶段地图。",
+                resultReady: "阶段结果已生成，可使用上方按钮展示或下载文件。",
+                uploadSuccess: "区域文件上传成功，已转换为 GeoJSON。",
+                uploadError: "区域上传失败",
+                authStart: "正在进行 GEE 验证...",
+                authSuccess: "GEE 验证成功。",
+                analysisQueued: "野火分析任务已提交。",
+                bboxApplied: "范围框已转换为 GeoJSON。",
+                resultUnavailable: "当前阶段没有可下载的对应文件。"
+            }
+        };
+
+        let currentLanguage = "en";
+        let currentTaskId = null;
+        let currentTaskPayload = null;
+        let selectedStageId = null;
+        let selectedSourceKey = null;
+        let pollHandle = null;
+        let lastLoggedMessage = "";
+        let hasUserProvidedRegion = false;
+
+        function t() {
+            return translations[currentLanguage];
+        }
+
+        function getSelectedSensors() {
+            const checked = Array.from(document.querySelectorAll('input[name="sensor-option"]:checked'))
+                .map((item) => item.value);
+            return checked.length ? checked : ["landsat"];
+        }
+
+        function addLog(message, type = "info") {
+            const log = document.getElementById("console-log");
+            const entry = document.createElement("div");
+            entry.className = `log-entry ${type}`;
+            entry.textContent = message;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function setLanguage(lang) {
+            currentLanguage = translations[lang] ? lang : "en";
+            const text = t();
+            document.documentElement.lang = currentLanguage;
+            document.title = text.pageTitle;
+            document.getElementById("page-title").textContent = text.pageTitle;
+            document.getElementById("language-label").textContent = text.languageLabel;
+            document.getElementById("console-title").textContent = text.consoleTitle;
+            document.getElementById("chat-message").placeholder = text.chatPlaceholder;
+            document.getElementById("chat-send-button").textContent = text.chatSendButton;
+            document.getElementById("custom-title").textContent = text.customTitle;
+            document.getElementById("workflow-title").textContent = text.workflowTitle;
+            document.getElementById("map-title").textContent = text.mapTitle;
+            document.getElementById("result-title").textContent = text.resultTitle;
+            document.getElementById("case-label").textContent = text.caseLabel;
+            document.getElementById("sensor-label").textContent = text.sensorLabel;
+            document.getElementById("date-start-label").textContent = text.dateStartLabel;
+            document.getElementById("date-end-label").textContent = text.dateEndLabel;
+            document.getElementById("bbox-min-lng-label").textContent = text.bboxMinLngLabel;
+            document.getElementById("bbox-min-lat-label").textContent = text.bboxMinLatLabel;
+            document.getElementById("bbox-max-lng-label").textContent = text.bboxMaxLngLabel;
+            document.getElementById("bbox-max-lat-label").textContent = text.bboxMaxLatLabel;
+            document.getElementById("region-label").textContent = text.regionLabel;
+            document.getElementById("upload-label").textContent = text.uploadLabel;
+            document.getElementById("default-case-button").textContent = text.defaultCaseButton;
+            document.getElementById("apply-bbox-button").textContent = text.applyBboxButton;
+            document.getElementById("upload-region-button").textContent = text.uploadRegionButton;
+            document.getElementById("auth-button").textContent = text.authButton;
+            document.getElementById("start-button").textContent = text.startButton;
+            document.getElementById("show-json-button").textContent = text.showJsonButton;
+            document.getElementById("download-json-button").textContent = text.downloadJsonButton;
+            document.getElementById("download-tif-button").textContent = text.downloadTifButton;
+            document.getElementById("download-png-button").textContent = text.downloadPngButton;
+            if (!selectedStageId) {
+                document.getElementById("result-content").textContent = text.resultEmpty;
+                document.getElementById("map-content").textContent = text.mapEmpty;
+                renderFlow(initialFlowState());
+            }
+        }
+
+        function loadDefaultCase() {
+            document.getElementById("case-name").value = DEFAULT_CASE.name;
+            document.getElementById("date-start").value = DEFAULT_CASE.date_start;
+            document.getElementById("date-end").value = DEFAULT_CASE.date_end;
+            document.getElementById("region-geojson").value = JSON.stringify(DEFAULT_CASE.region_geojson, null, 2);
+            document.querySelector('input[name="sensor-option"][value="landsat"]').checked = true;
+            document.querySelector('input[name="sensor-option"][value="sentinel2"]').checked = false;
+            document.querySelector('input[name="sensor-option"][value="modis"]').checked = false;
+            document.querySelector('input[name="sensor-option"][value="viirs"]').checked = false;
+            hasUserProvidedRegion = false;
+            const bbox = computeBBox(DEFAULT_CASE.region_geojson);
+            if (bbox) {
+                document.getElementById("bbox-min-lng").value = bbox.min_lng;
+                document.getElementById("bbox-min-lat").value = bbox.min_lat;
+                document.getElementById("bbox-max-lng").value = bbox.max_lng;
+                document.getElementById("bbox-max-lat").value = bbox.max_lat;
+            }
+            addLog(`Default case loaded: ${DEFAULT_CASE.name} (${DEFAULT_CASE.event_date})`, "info");
+        }
+
+        function applyBoundingBox() {
+            const minLng = Number(document.getElementById("bbox-min-lng").value);
+            const minLat = Number(document.getElementById("bbox-min-lat").value);
+            const maxLng = Number(document.getElementById("bbox-max-lng").value);
+            const maxLat = Number(document.getElementById("bbox-max-lat").value);
+            if ([minLng, minLat, maxLng, maxLat].some(Number.isNaN)) {
+                addLog("Bounding box values are incomplete.", "error");
+                return;
+            }
+            const geojson = {
+                type: "Polygon",
+                coordinates: [[
+                    [minLng, minLat],
+                    [maxLng, minLat],
+                    [maxLng, maxLat],
+                    [minLng, maxLat],
+                    [minLng, minLat]
+                ]]
+            };
+            document.getElementById("region-geojson").value = JSON.stringify(geojson, null, 2);
+            hasUserProvidedRegion = true;
+            addLog(t().bboxApplied, "success");
+        }
+
+        async function uploadRegionFiles() {
+            const files = document.getElementById("region-files").files;
+            if (!files.length) {
+                addLog("No region files selected.", "error");
+                return;
+            }
+
+            const formData = new FormData();
+            for (const file of files) {
+                formData.append("files", file);
+            }
+
+            const response = await fetch("/upload_region", {
+                method: "POST",
+                body: formData
+            });
+            const data = await response.json();
+            if (!response.ok || data.status !== "success") {
+                addLog(`${t().uploadError}: ${data.message}`, "error");
+                return;
+            }
+
+            document.getElementById("region-geojson").value = JSON.stringify(data.region_geojson, null, 2);
+            hasUserProvidedRegion = true;
+            if (data.bbox) {
+                document.getElementById("bbox-min-lng").value = data.bbox.min_lng;
+                document.getElementById("bbox-min-lat").value = data.bbox.min_lat;
+                document.getElementById("bbox-max-lng").value = data.bbox.max_lng;
+                document.getElementById("bbox-max-lat").value = data.bbox.max_lat;
+            }
+            addLog(t().uploadSuccess, "success");
+        }
+
+        async function authenticateGee() {
+            addLog(t().authStart, "info");
+            const response = await fetch("/authenticate_gee", { method: "POST" });
+            const data = await response.json();
+            if (!response.ok || data.status !== "success") {
+                addLog(data.message || "GEE authentication failed.", "error");
+                return;
+            }
+            addLog(data.message || t().authSuccess, "success");
+        }
+
+        async function startAnalysis() {
+            const regionText = document.getElementById("region-geojson").value.trim();
+            if (!regionText) {
+                addLog("GeoJSON region is required.", "error");
+                return;
+            }
+
+            let regionObj = null;
+            try {
+                regionObj = JSON.parse(regionText);
+            } catch (error) {
+                addLog(`GeoJSON parse failed: ${error.message}`, "error");
+                return;
+            }
+
+            const payload = {
+                case_name: document.getElementById("case-name").value.trim() || DEFAULT_CASE.name,
+                date_start: document.getElementById("date-start").value,
+                date_end: document.getElementById("date-end").value,
+                region_geojson: regionObj,
+                sensors: getSelectedSensors()
+            };
+
+            addLog(t().analysisQueued, "info");
+            const response = await fetch("/start_analysis", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok || data.status !== "accepted") {
+                addLog(data.message || "Failed to start wildfire analysis.", "error");
+                return;
+            }
+
+            currentTaskId = data.task_id;
+            currentTaskPayload = null;
+            selectedStageId = null;
+            selectedSourceKey = null;
+            lastLoggedMessage = "";
+            resetStageViews();
+            startPolling();
+        }
+
+        async function sendChatTask() {
+            const message = document.getElementById("chat-message").value.trim();
+            if (!message) {
+                addLog("Please enter a task in the chat window.", "error");
+                return;
+            }
+
+            addLog(message, "info");
+
+            let regionObj = null;
+            const regionText = document.getElementById("region-geojson").value.trim();
+            if (regionText) {
+                try {
+                    regionObj = JSON.parse(regionText);
+                } catch (error) {
+                    regionObj = null;
+                }
+            }
+
+            const payload = {
+                message: message,
+                language: currentLanguage,
+                case_name: document.getElementById("case-name").value.trim() || DEFAULT_CASE.name,
+                date_start: document.getElementById("date-start").value,
+                date_end: document.getElementById("date-end").value,
+                region_geojson: regionObj,
+                has_custom_region: hasUserProvidedRegion,
+                sensors: getSelectedSensors()
+            };
+
+            const response = await fetch("/chat_start_analysis", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok || data.status !== "accepted") {
+                addLog(data.message || "Failed to start wildfire analysis from chat.", "error");
+                return;
+            }
+
+            if (data.reply) {
+                addLog(data.reply, "success");
+            }
+
+            if (data.resolved_task) {
+                document.getElementById("case-name").value = data.resolved_task.case_name || "";
+                document.getElementById("date-start").value = data.resolved_task.date_start || "";
+                document.getElementById("date-end").value = data.resolved_task.date_end || "";
+                document.getElementById("region-geojson").value = JSON.stringify(data.resolved_task.region_geojson, null, 2);
+                if (Array.isArray(data.resolved_task.sensors)) {
+                    for (const checkbox of document.querySelectorAll('input[name="sensor-option"]')) {
+                        checkbox.checked = data.resolved_task.sensors.includes(checkbox.value);
+                    }
+                }
+                const bbox = computeBBox(data.resolved_task.region_geojson);
+                if (bbox) {
+                    document.getElementById("bbox-min-lng").value = bbox.min_lng;
+                    document.getElementById("bbox-min-lat").value = bbox.min_lat;
+                    document.getElementById("bbox-max-lng").value = bbox.max_lng;
+                    document.getElementById("bbox-max-lat").value = bbox.max_lat;
+                }
+            }
+
+            currentTaskId = data.task_id;
+            currentTaskPayload = null;
+            selectedStageId = null;
+            selectedSourceKey = null;
+            lastLoggedMessage = "";
+            resetStageViews();
+            startPolling();
+        }
+
+        function startPolling() {
+            if (pollHandle) {
+                clearInterval(pollHandle);
+            }
+            pollTaskStatus();
+            pollHandle = setInterval(pollTaskStatus, 1800);
+        }
+
+        async function pollTaskStatus() {
+            if (!currentTaskId) {
+                return;
+            }
+
+            const response = await fetch(`/task_status/${currentTaskId}`);
+            const data = await response.json();
+            if (!response.ok) {
+                addLog(data.message || "Failed to fetch task status.", "error");
+                clearInterval(pollHandle);
+                return;
+            }
+
+            currentTaskPayload = data;
+            renderFlow(data.flow || []);
+
+            if (data.message && data.message !== lastLoggedMessage) {
+                lastLoggedMessage = data.message;
+                addLog(data.message, data.status === "error" ? "error" : data.status === "completed" ? "success" : "info");
+            }
+
+            if (data.stages && data.stages.length) {
+                renderStageTabs(data.stages);
+                if (!selectedStageId) {
+                    selectStage(data.stages[0].id);
+                } else {
+                    renderSelectedStage();
+                }
+            }
+
+            if (data.status === "completed" || data.status === "error") {
+                clearInterval(pollHandle);
+                pollHandle = null;
+            }
+        }
+
+        function renderFlow(flow) {
+            const container = document.getElementById("flow-steps");
+            container.innerHTML = flow.map((item, index) => `
+                <div class="flow-step ${item.status}">
+                    <div class="flow-index">${index + 1}</div>
+                    <div>
+                        <strong>${escapeHtml(item.title)}</strong>
+                        <div class="flow-message">${escapeHtml(item.message || "")}</div>
+                    </div>
+                </div>
+            `).join("");
+        }
+
+        function initialFlowState() {
+            if (currentLanguage === "zh") {
+                return [
+                    { id: "active_fire", title: "1. 活动火点识别", status: "pending", message: "等待运行。" },
+                    { id: "smoke_plume", title: "2. 烟羽增强识别", status: "pending", message: "等待运行。" },
+                    { id: "pre_post_change", title: "3. 火前/火后变化检测", status: "pending", message: "等待运行。" },
+                    { id: "burned_area", title: "4. 过火区提取", status: "pending", message: "等待运行。" },
+                    { id: "severity", title: "5. 烧毁严重度分级", status: "pending", message: "等待运行。" }
+                ];
+            }
+
+            return [
+                { id: "active_fire", title: "1. Active Fire Detection", status: "pending", message: "Waiting to run." },
+                { id: "smoke_plume", title: "2. Smoke Plume Enhancement", status: "pending", message: "Waiting to run." },
+                { id: "pre_post_change", title: "3. Pre/Post Change Detection", status: "pending", message: "Waiting to run." },
+                { id: "burned_area", title: "4. Burned Area Extraction", status: "pending", message: "Waiting to run." },
+                { id: "severity", title: "5. Burn Severity Classification", status: "pending", message: "Waiting to run." }
+            ];
+        }
+
+        function renderStageTabs(stages) {
+            const mapTabs = document.getElementById("map-stage-tabs");
+            const resultTabs = document.getElementById("result-stage-tabs");
+            const html = stages.map((stage) => `
+                <button type="button" class="stage-tab ${stage.id === selectedStageId ? "active" : ""}" data-stage="${stage.id}">
+                    ${escapeHtml(stage.title)}
+                </button>
+            `).join("");
+            mapTabs.innerHTML = html;
+            resultTabs.innerHTML = html;
+            for (const button of document.querySelectorAll(".stage-tab")) {
+                button.addEventListener("click", () => selectStage(button.dataset.stage));
+            }
+        }
+
+        function selectStage(stageId) {
+            selectedStageId = stageId;
+            selectedSourceKey = null;
+            renderStageTabs(currentTaskPayload ? currentTaskPayload.stages || [] : []);
+            renderSelectedStage();
+        }
+
+        function renderSelectedStage() {
+            const stage = getSelectedStage();
+            if (!stage) {
+                return;
+            }
+
+            if (!getSelectedSourceResult(stage) && stage.source_results && stage.source_results.length) {
+                selectedSourceKey = stage.source_results[0].source_key;
+            }
+
+            renderMapStage(stage);
+            renderResultStage(stage);
+        }
+
+        function renderMapStage(stage) {
+            const mapContent = document.getElementById("map-content");
+            const source = getSelectedSourceResult(stage);
+            if (!source) {
+                mapContent.innerHTML = `<div class="empty-state">${escapeHtml(t().mapEmpty)}</div>`;
+                return;
+            }
+            mapContent.innerHTML = `
+                <div class="map-layout">
+                    <div class="map-frame-wrap">
+                        ${
+                            source.html_url
+                                ? `<iframe class="map-frame" src="${escapeHtml(source.html_url)}" title="${escapeHtml(stage.title)}"></iframe>`
+                                : `<div class="empty-state">${escapeHtml(source.html_error || t().mapEmpty)}</div>`
+                        }
+                    </div>
+                    <div class="map-info-column">
+                        <div class="meta-grid">
+                            <div class="meta-card"><small>Algorithm</small>${escapeHtml(source.algorithm)}</div>
+                            <div class="meta-card"><small>Message</small>${escapeHtml(source.message)}</div>
+                            <div class="meta-card"><small>Sensor</small>${escapeHtml(source.sensor || "Landsat")}</div>
+                            <div class="meta-card"><small>Date Range</small>${escapeHtml(source.date_start || "")} - ${escapeHtml(source.date_end || "")}</div>
+                        </div>
+                        ${renderStageSummaryCards(source.summary || {})}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderStageSummaryCards(summary) {
+            const entries = Object.entries(summary || {});
+            if (!entries.length) {
+                return "";
+            }
+
+            return entries.map(([key, value]) => `
+                <div class="meta-card">
+                    <small>${escapeHtml(key)}</small>
+                    <div>${escapeHtml(typeof value === "object" ? JSON.stringify(value) : String(value))}</div>
+                </div>
+            `).join("");
+        }
+
+        function renderResultStage(stage) {
+            const resultContent = document.getElementById("result-content");
+            const source = getSelectedSourceResult(stage);
+            if (!source) {
+                resultContent.textContent = t().resultEmpty;
+                return;
+            }
+
+            resultContent.innerHTML = `
+                ${renderSourceTabs(stage)}
+                ${renderComparisonCards(stage.comparison || {})}
+                <div class="meta-card">
+                    <small>${escapeHtml(source.sensor || "")}</small>
+                    <div>${escapeHtml(t().resultReady)}</div>
+                </div>
+            `;
+
+            for (const button of resultContent.querySelectorAll(".source-tab")) {
+                button.addEventListener("click", () => {
+                    selectedSourceKey = button.dataset.source;
+                    renderSelectedStage();
+                });
+            }
+
+            document.getElementById("show-json-button").disabled = false;
+            document.getElementById("download-json-button").disabled = !(source.downloads && source.downloads.json && source.downloads.json.url);
+            document.getElementById("download-tif-button").disabled = !(source.downloads && source.downloads.tif && source.downloads.tif.url);
+            document.getElementById("download-png-button").disabled = !(source.downloads && source.downloads.png && source.downloads.png.url);
+        }
+
+        function getSelectedStage() {
+            if (!currentTaskPayload || !currentTaskPayload.stages || !selectedStageId) {
+                return null;
+            }
+            return currentTaskPayload.stages.find((item) => item.id === selectedStageId) || null;
+        }
+
+        function getSelectedSourceResult(stage) {
+            if (!stage || !stage.source_results || !stage.source_results.length) {
+                return null;
+            }
+            return stage.source_results.find((item) => item.source_key === selectedSourceKey) || stage.source_results[0];
+        }
+
+        function renderSourceTabs(stage) {
+            const items = stage.source_results || [];
+            if (items.length <= 1) {
+                return "";
+            }
+            return `
+                <div class="source-tabs">
+                    ${items.map((item) => `
+                        <button type="button" class="source-tab ${item.source_key === (selectedSourceKey || items[0].source_key) ? "active" : ""}" data-source="${escapeHtml(item.source_key)}">
+                            ${escapeHtml(item.sensor)}
+                        </button>
+                    `).join("")}
+                </div>
+            `;
+        }
+
+        function renderComparisonCards(comparison) {
+            const metrics = comparison.metrics || [];
+            if (!metrics.length) {
+                return "";
+            }
+            return `
+                <div class="comparison-grid">
+                    ${metrics.map((item) => `
+                        <div class="meta-card">
+                            <small>${escapeHtml(item.sensor)} | ${escapeHtml(comparison.metric_label || "Metric")}</small>
+                            <div>${escapeHtml(item.primary_value ?? "")}</div>
+                        </div>
+                    `).join("")}
+                </div>
+            `;
+        }
+
+        function showSelectedJson() {
+            const stage = getSelectedStage();
+            const source = getSelectedSourceResult(stage);
+            const resultContent = document.getElementById("result-content");
+            if (!stage || !source) {
+                resultContent.textContent = t().resultEmpty;
+                return;
+            }
+            resultContent.innerHTML = `<pre>${escapeHtml(JSON.stringify(source, null, 2))}</pre>`;
+        }
+
+        function downloadStageResource(type) {
+            const stage = getSelectedStage();
+            const source = getSelectedSourceResult(stage);
+            if (!source || !source.downloads || !source.downloads[type] || !source.downloads[type].url) {
+                addLog(t().resultUnavailable, "error");
+                return;
+            }
+            const resource = source.downloads[type];
+            const link = document.createElement("a");
+            link.href = resource.url;
+            link.target = "_blank";
+            link.download = resource.filename || "";
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        }
+
+        function resetStageViews() {
+            renderFlow(initialFlowState());
+            document.getElementById("map-stage-tabs").innerHTML = "";
+            document.getElementById("result-stage-tabs").innerHTML = "";
+            document.getElementById("map-content").textContent = t().mapEmpty;
+            document.getElementById("result-content").textContent = t().resultEmpty;
+            selectedSourceKey = null;
+            document.getElementById("show-json-button").disabled = true;
+            document.getElementById("download-json-button").disabled = true;
+            document.getElementById("download-tif-button").disabled = true;
+            document.getElementById("download-png-button").disabled = true;
+        }
+
+        function computeBBox(region) {
+            const coords = flattenCoordinates(region.coordinates || []);
+            if (!coords.length) {
+                return null;
+            }
+            const lngs = coords.map((point) => point[0]);
+            const lats = coords.map((point) => point[1]);
+            return {
+                min_lng: Math.min(...lngs),
+                min_lat: Math.min(...lats),
+                max_lng: Math.max(...lngs),
+                max_lat: Math.max(...lats)
+            };
+        }
+
+        function flattenCoordinates(coords) {
+            if (!Array.isArray(coords)) {
+                return [];
+            }
+            if (coords.length >= 2 && typeof coords[0] === "number" && typeof coords[1] === "number") {
+                return [[coords[0], coords[1]]];
+            }
+            return coords.flatMap((item) => flattenCoordinates(item));
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+
+        document.getElementById("language-select").addEventListener("change", (event) => setLanguage(event.target.value));
+        document.getElementById("default-case-button").addEventListener("click", loadDefaultCase);
+        document.getElementById("apply-bbox-button").addEventListener("click", applyBoundingBox);
+        document.getElementById("upload-region-button").addEventListener("click", uploadRegionFiles);
+        document.getElementById("auth-button").addEventListener("click", authenticateGee);
+        document.getElementById("start-button").addEventListener("click", startAnalysis);
+        document.getElementById("chat-send-button").addEventListener("click", sendChatTask);
+        document.getElementById("show-json-button").addEventListener("click", showSelectedJson);
+        document.getElementById("download-json-button").addEventListener("click", () => downloadStageResource("json"));
+        document.getElementById("download-tif-button").addEventListener("click", () => downloadStageResource("tif"));
+        document.getElementById("download-png-button").addEventListener("click", () => downloadStageResource("png"));
+        document.getElementById("region-geojson").addEventListener("input", () => {
+            if (document.getElementById("region-geojson").value.trim()) {
+                hasUserProvidedRegion = true;
+            }
+        });
+
+        setLanguage("en");
+        loadDefaultCase();
+        resetStageViews();
+        addLog("The wildfire pipeline is ready. Landsat is enabled by default, and Sentinel-2 can be added for comparison.", "info");
+    </script>
+</body>
+</html>
